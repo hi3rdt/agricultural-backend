@@ -9,8 +9,7 @@ import requests
 import google.generativeai as genai
 import json
 
-
-# 
+# Cấu hình logging chi tiết hơn
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s - %(levelname)s - %(message)s",
@@ -20,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-#Next.js va ESP32 truy cap api
+# Cho phép Next.js và ESP32 truy cập API
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -33,7 +32,7 @@ app.add_middleware(
 DB_FILE = "data.db"
 db_lock = Lock()
 
-# khoi tao database
+# Khởi tạo database nếu chưa có
 def init_db():
     try:
         conn = sqlite3.connect(DB_FILE)
@@ -71,49 +70,50 @@ class ControlRequest(BaseModel):
     high_threshold: int
     pump_status: bool
 
-# api key
+# API Keys và Chat ID (thay bằng thông tin thực tế của bạn)
 TELEGRAM_BOT_TOKEN = "8293702102:AAFPJgSDjLyYtTxamqjAjGjC52FQtyys2kA"
 TELEGRAM_CHAT_ID = "-4879272337"  
 OPENWEATHER_API_KEY = "02ff7531ae951a7efa49bc9cd0b418d7"
 GEMINI_API_KEY = "AIzaSyDBJYHLrAX-W-7weZ3VgseTUeVbJTixwdM"
 
-#gemini
+# Cấu hình Gemini
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel("gemini-1.5-pro")
+model = genai.GenerativeModel('gemini-pro')  # Sử dụng 'gemini-pro'
 
-#du bao thoi tiet
+# Lấy dự báo thời tiết từ OpenWeatherMap
 async def get_weather_forecast(lat: float = 10.8231, lon: float = 106.6297):
-    
-        url = f"http://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={OPENWEATHER_API_KEY}&units=metric"
-        response = requests.get(url)
+    url = f"http://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&appid={OPENWEATHER_API_KEY}&units=metric"
+    response = requests.get(url)
+    if response.status_code == 200:
+        data = response.json()
+        return [{"date": datetime.fromtimestamp(item["dt"]).strftime("%Y-%m-%d"),
+                 "temp": item["main"]["temp"],
+                 "humidity": item["main"]["humidity"],
+                 "rain_prob": item.get("pop", 0) * 100} for item in data["list"][:5 * 8]]
+    return []
+
+# Phân tích từ Gemini
+async def analyze_irrigation_and_fertilizer(sensor_data: dict, weather_forecast: list):
+    prompt = f"""
+    Dữ liệu cảm biến: Nhiệt độ {sensor_data['temperature']}°C, Độ ẩm không khí {sensor_data['humidity']}%, Độ ẩm đất {sensor_data['soil']}%.
+    Dự báo thời tiết 5 ngày: {weather_forecast}.
+    Đề xuất: Giờ tưới tối ưu, ngày bón phân. Trả về JSON: {{"optimal_irrigation_time": "giờ", "fertilizer_day": "ngày", "reason": "lý do"}}
+    """
+    response = model.generate_content(prompt)
+    return json.loads(response.text)  # Parse JSON từ Gemini
+
+# Gửi tin nhắn Telegram (ĐẢM BẢO HÀM NÀY ĐƯỢC ĐỊNH NGHĨA)
+def send_telegram_message(message):
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": message, "parse_mode": "Markdown"}
+    try:
+        response = requests.post(url, json=payload)
         if response.status_code == 200:
-            data = response.json()
-            return [{"date": datetime.fromtimestamp(item["dt"]).strftime("%Y-%m-%d"),
-                     "temp": item["main"]["temp"],
-                     "humidity": item["main"]["humidity"],
-                     "rain_prob": item.get("pop", 0) * 100} for item in data["list"][:5 * 8]]
-        return []
-
-
-# phan tich gemini
-async def analyze_irrigation_and_fertilizer(sensor_data: dict, weather_forecast: list):
-    prompt = f"""
-    Dữ liệu cảm biến: Nhiệt độ {sensor_data['temperature']}°C, Độ ẩm không khí {sensor_data['humidity']}%, Độ ẩm đất {sensor_data['soil']}%.
-    Dự báo thời tiết 5 ngày: {weather_forecast}.
-    Đề xuất: Giờ tưới tối ưu, ngày bón phân. Trả về JSON: {{"optimal_irrigation_time": "giờ", "fertilizer_day": "ngày", "reason": "lý do"}}
-    """
-    response = model.generate_content(prompt)
-    return json.loads(response.text)
-
-# gui tin nhan telegram
-async def analyze_irrigation_and_fertilizer(sensor_data: dict, weather_forecast: list):
-    prompt = f"""
-    Dữ liệu cảm biến: Nhiệt độ {sensor_data['temperature']}°C, Độ ẩm không khí {sensor_data['humidity']}%, Độ ẩm đất {sensor_data['soil']}%.
-    Dự báo thời tiết 5 ngày: {weather_forecast}.
-    Đề xuất: Giờ tưới tối ưu, ngày bón phân. Trả về JSON: {{"optimal_irrigation_time": "giờ", "fertilizer_day": "ngày", "reason": "lý do"}}
-    """
-    response = model.generate_content(prompt)
-    return json.loads(response.text)
+            logger.info(f"Telegram message sent at {datetime.now()}")
+        else:
+            logger.error(f"Failed to send: {response.text}")
+    except Exception as e:
+        logger.error(f"Error: {e}")
 
 # Root endpoint để test
 @app.get("/")
@@ -127,7 +127,7 @@ def read_root():
             "GET /data": "Get all sensor data",
             "GET /latest": "Get latest sensor data",
             "POST /control": "Update control settings",
-            "POST /telegram/webhook": "Receive Telegram webhook",
+            "POST /telegram/webhook": "Handle Telegram commands"
         }
     }
 
@@ -203,10 +203,10 @@ def get_data(limit: int = 100, offset: int = 0):
         headers = ["Timestamp", "Temperature (°C)", "Humidity (%)", "Soil Humidity (%)", 
                    "Pump Status", "Mode", "Low Threshold (%)", "High Threshold (%)"]
         
-        logger.info(f"📋 Truy xuất {total} bản ghi cho dashboard")
+        logger.info(f"Truy xuất {total} bản ghi cho dashboard")
         return {"headers": headers, "records": records, "total": total}
     except Exception as e:
-        logger.error(f"❌ Lỗi khi đọc dữ liệu: {e}")
+        logger.error(f"Lỗi khi đọc dữ liệu: {e}")
         raise HTTPException(status_code=500, detail="Lỗi server")
 
 # Lấy dữ liệu mới nhất
@@ -306,15 +306,15 @@ async def update_control(request: ControlRequest):
             logger.debug(f"Record vừa chèn: pump_status={last_record[0]}, mode={last_record[1]}")
             conn.close()
         
-        logger.info(f"✅ Cập nhật điều khiển thành công")
+        logger.info(f"Cập nhật điều khiển thành công")
         return {"message": "Cập nhật thành công", "config": request.dict()}
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Lỗi khi cập nhật điều khiển: {e}")
+        logger.error(f"Lỗi khi cập nhật điều khiển: {e}")
         raise HTTPException(status_code=500, detail="Lỗi server")
-    
-# webhook telegram
+
+# Webhook để nhận lệnh từ Telegram
 @app.post("/telegram/webhook")
 async def telegram_webhook(request: Request):
     try:
@@ -335,18 +335,18 @@ async def telegram_webhook(request: Request):
                     forecast = await get_weather_forecast()
                     analysis = await analyze_irrigation_and_fertilizer({"temperature": temperature, "humidity": humidity, "soil": soil}, forecast)
                     message = f"*Phân tích tưới tiêu*\n- Độ ẩm đất: {soil}%\n- Nhiệt độ: {temperature}°C\n- Độ ẩm không khí: {humidity}%\n- Giờ tưới tối ưu: {analysis['optimal_irrigation_time']}\n- Ngày bón phân: {analysis['fertilizer_day']}\n- Lý do: {analysis['reason']}"
-                    send_telegram_message(message)
+                    send_telegram_message(message)  # Sử dụng hàm đã định nghĩa
                 else:
                     send_telegram_message("Không có dữ liệu cảm biến gần đây.")
         return {"status": "ok"}
     except Exception as e:
         logger.error(f"Lỗi khi xử lý webhook Telegram: {e}")
         raise HTTPException(status_code=500, detail="Lỗi server")
-    
-# thiet lap webhook khi khoi dong
+
+# Thiết lập webhook khi khởi động
 @app.on_event("startup")
 async def on_startup():
-    webhook_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/setWebhook?url=https://agricultural-backend.onrender.com/telegram/webhook"
+    webhook_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/setWebhook?url=https://your-backend-url.onrender.com/telegram/webhook"
     response = requests.get(webhook_url)
     logger.info(f"Webhook setup: {response.text}")
 
