@@ -2,3 +2,5 @@ fastapi
 uvicorn
 paho-mqtt
 openpyxl
+google-generativeai
+requests

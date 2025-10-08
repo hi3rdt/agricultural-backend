@@ -5,8 +5,12 @@ import sqlite3
 import logging
 from fastapi.middleware.cors import CORSMiddleware
 from threading import Lock
+import requests
+import google.generativeai as genai
+import json
 
-# Cấu hình logging chi tiết hơn
+
+# 
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s - %(levelname)s - %(message)s",
@@ -16,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-# Cho phép Next.js và ESP32 truy cập API
+#Next.js va ESP32 truy cap api
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -29,7 +33,7 @@ app.add_middleware(
 DB_FILE = "data.db"
 db_lock = Lock()
 
-# Khởi tạo database nếu chưa có
+# khoi tao database
 def init_db():
     try:
         conn = sqlite3.connect(DB_FILE)
@@ -66,6 +70,12 @@ class ControlRequest(BaseModel):
     low_threshold: int
     high_threshold: int
     pump_status: bool
+
+# api key
+TELEGRAM_BOT_TOKEN = "8293702102:AAFPJgSDjLyYtTxamqjAjGjC52FQtyys2kA"
+TELEGRAM_CHAT_ID = "-4879272337"  
+OPENWEATHER_API_KEY = "02ff7531ae951a7efa49bc9cd0b418d7"
+GEMINI_API_KEY = "AIzaSyDBJYHLrAX-W-7weZ3VgseTUeVbJTixwdM"
 
 # Root endpoint để test
 @app.get("/")
