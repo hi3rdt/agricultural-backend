@@ -9,7 +9,7 @@ import requests
 import google.generativeai as genai
 import json
 
-# Cấu hình logging chi tiết hơn
+#  logging 
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s - %(levelname)s - %(message)s",
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-# Cho phép Next.js và ESP32 truy cập API
+#  Next.js va ESP32 truy cap API
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -32,7 +32,7 @@ app.add_middleware(
 DB_FILE = "data.db"
 db_lock = Lock()
 
-# Khởi tạo database nếu chưa có
+#  database 
 def init_db():
     try:
         conn = sqlite3.connect(DB_FILE)
@@ -56,31 +56,31 @@ def init_db():
 
 init_db()
 
-# Model dữ liệu từ cảm biến ESP32
+#  ESP32
 class SensorData(BaseModel):
     temperature: float
     humidity: float
     soil: float
     pump_status: bool
 
-# Model dữ liệu điều khiển từ dashboard
+#  dashboard
 class ControlRequest(BaseModel):
     mode: str
     low_threshold: int
     high_threshold: int
     pump_status: bool
 
-# API Keys và Chat ID (thay bằng thông tin thực tế của bạn)
+# API Keys 
 TELEGRAM_BOT_TOKEN = "8293702102:AAFPJgSDjLyYtTxamqjAjGjC52FQtyys2kA"
 TELEGRAM_CHAT_ID = "-4879272337"  
 OPENWEATHER_API_KEY = "02ff7531ae951a7efa49bc9cd0b418d7"
 GEMINI_API_KEY = "AIzaSyDBJYHLrAX-W-7weZ3VgseTUeVbJTixwdM"
 
-# Cấu hình Gemini
+# Gemini
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-1.5-pro')  
+model = genai.GenerativeModel('gemini-2.0-flash')  
 
-# Lấy dự báo thời tiết từ OpenWeatherMap
+# OpenWeatherMap
 async def get_weather_forecast(lat: float = 10.8231, lon: float = 106.6297):
     url = f"http://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&appid={OPENWEATHER_API_KEY}&units=metric"
     response = requests.get(url)
