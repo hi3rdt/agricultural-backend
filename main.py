@@ -100,9 +100,9 @@ async def analyze_irrigation_and_fertilizer(sensor_data: dict, weather_forecast:
     Đề xuất: Giờ tưới tối ưu, ngày bón phân. Trả về JSON: {{"optimal_irrigation_time": "giờ", "fertilizer_day": "ngày", "reason": "lý do"}}
     """
     response = model.generate_content(prompt)
-    return json.loads(response.text)  # Parse JSON từ Gemini
+    return json.loads(response.text)  
 
-# Gửi tin nhắn Telegram (ĐẢM BẢO HÀM NÀY ĐƯỢC ĐỊNH NGHĨA)
+
 def send_telegram_message(message):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {"chat_id": TELEGRAM_CHAT_ID, "text": message, "parse_mode": "Markdown"}
@@ -272,17 +272,17 @@ def get_control_status():
         logger.error(f"Lỗi khi đọc trạng thái điều khiển: {e}")
         raise HTTPException(status_code=500, detail="Lỗi server")
 
-# Cập nhật điều khiển từ dashboard
+
 @app.post("/control")
 async def update_control(request: ControlRequest):
     try:
-        logger.info(f"🎮 Nhận yêu cầu điều khiển: {request.dict()}")
+        logger.info(f"Nhận yêu cầu điều khiển: {request.dict()}")
         
-        # Kiểm tra ngưỡng hợp lệ
+       
         if request.low_threshold < 0 or request.high_threshold > 100 or request.low_threshold > 100 or request.high_threshold < 0:
             raise HTTPException(status_code=400, detail="Ngưỡng không hợp lệ (phải trong khoảng 0-100)")
         
-        # Warning nếu low >= high nhưng vẫn cho phép
+        
         if request.low_threshold >= request.high_threshold:
             logger.warning(f"Low threshold ({request.low_threshold}) >= High threshold ({request.high_threshold})")
 
@@ -291,7 +291,7 @@ async def update_control(request: ControlRequest):
         with db_lock:
             conn = sqlite3.connect(DB_FILE)
             c = conn.cursor()
-            # Thêm log để kiểm tra giá trị trước khi chèn
+            
             logger.debug(f"Chèn record: timestamp={timestamp}, pump_status={int(request.pump_status)}, mode={request.mode}, "
                         f"low_threshold={request.low_threshold}, high_threshold={request.high_threshold}")
             c.execute('''INSERT INTO sensor_data 
@@ -300,7 +300,7 @@ async def update_control(request: ControlRequest):
                       (timestamp, int(request.pump_status), request.mode, 
                        request.low_threshold, request.high_threshold))
             conn.commit()
-            # Kiểm tra lại record vừa chèn
+          
             c.execute("SELECT pump_status, mode FROM sensor_data ORDER BY id DESC LIMIT 1")
             last_record = c.fetchone()
             logger.debug(f"Record vừa chèn: pump_status={last_record[0]}, mode={last_record[1]}")
@@ -319,9 +319,11 @@ async def update_control(request: ControlRequest):
 async def telegram_webhook(request: Request):
     try:
         data = await request.json()
+        logger.info(f"Received webhook data: {data}")
         if "message" in data and "text" in data["message"]:
             command = data["message"]["text"]
             chat_id = data["message"]["chat"]["id"]
+            logger.info(f"Processing command: {command}, chat_id: {chat_id}")
             if command == "/analyst":
                 with db_lock:
                     conn = sqlite3.connect(DB_FILE)
@@ -329,18 +331,25 @@ async def telegram_webhook(request: Request):
                     c.execute("SELECT * FROM sensor_data ORDER BY id DESC LIMIT 1")
                     row = c.fetchone()
                     conn.close()
+                    logger.info(f"Database row: {row}")
 
                 if row:
-                    temperature, humidity, soil = row[2], row[3], row[4]  # Giả sử cột 2,3,4
+                    temperature, humidity, soil = row[2], row[3], row[4]
+                    logger.info(f"Sensor data: temp={temperature}, hum={humidity}, soil={soil}")
                     forecast = await get_weather_forecast()
+                    logger.info(f"Weather forecast: {forecast}")
                     analysis = await analyze_irrigation_and_fertilizer({"temperature": temperature, "humidity": humidity, "soil": soil}, forecast)
+                    logger.info(f"Gemini analysis: {analysis}")
                     message = f"*Phân tích tưới tiêu*\n- Độ ẩm đất: {soil}%\n- Nhiệt độ: {temperature}°C\n- Độ ẩm không khí: {humidity}%\n- Giờ tưới tối ưu: {analysis['optimal_irrigation_time']}\n- Ngày bón phân: {analysis['fertilizer_day']}\n- Lý do: {analysis['reason']}"
-                    send_telegram_message(message)  # Sử dụng hàm đã định nghĩa
+                    logger.info(f"Sending message: {message}") 
+                    send_telegram_message(message)
                 else:
-                    send_telegram_message("Không có dữ liệu cảm biến gần đây.")
+                    message = "Không có dữ liệu cảm biến gần đây."
+                    logger.info(f"Sending message: {message}")
+                    send_telegram_message(message)
         return {"status": "ok"}
     except Exception as e:
-        logger.error(f"Lỗi khi xử lý webhook Telegram: {e}")
+        logger.error(f"Lỗi khi xử lý webhook Telegram: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Lỗi server")
 
 # Thiết lập webhook khi khởi động
