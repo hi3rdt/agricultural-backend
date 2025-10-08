@@ -79,7 +79,7 @@ GEMINI_API_KEY = "AIzaSyDBJYHLrAX-W-7weZ3VgseTUeVbJTixwdM"
 
 #gemini
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.Model("gemini-1.5-pro")
+model = genai.GenerativeModel("gemini-1.5-pro")
 
 #du bao thoi tiet
 async def get_weather_forecast(lat: float = 10.8231, lon: float = 106.6297):
