@@ -78,7 +78,7 @@ GEMINI_API_KEY = "AIzaSyDBJYHLrAX-W-7weZ3VgseTUeVbJTixwdM"
 
 # Cấu hình Gemini
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-pro')  # Sử dụng 'gemini-pro'
+model = genai.GenerativeModel('gemini-pro')  
 
 # Lấy dự báo thời tiết từ OpenWeatherMap
 async def get_weather_forecast(lat: float = 10.8231, lon: float = 106.6297):
@@ -346,7 +346,7 @@ async def telegram_webhook(request: Request):
 # Thiết lập webhook khi khởi động
 @app.on_event("startup")
 async def on_startup():
-    webhook_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/setWebhook?url=https://your-backend-url.onrender.com/telegram/webhook"
+    webhook_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/setWebhook?url=https://agricultural-backend.onrender.com/telegram/webhook"
     response = requests.get(webhook_url)
     logger.info(f"Webhook setup: {response.text}")
 
