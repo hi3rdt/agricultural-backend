@@ -78,7 +78,7 @@ GEMINI_API_KEY = "AIzaSyDBJYHLrAX-W-7weZ3VgseTUeVbJTixwdM"
 
 # Gemini
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-2.0-flash')  
+model = genai.GenerativeModel('models/gemini-2.0-flash')  
 
 # OpenWeatherMap
 async def get_weather_forecast(lat: float = 10.8231, lon: float = 106.6297):
