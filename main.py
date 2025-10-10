@@ -99,9 +99,35 @@ async def analyze_irrigation_and_fertilizer(sensor_data: dict, weather_forecast:
     Dự báo thời tiết 5 ngày: {weather_forecast}.
     Đề xuất: Giờ tưới tối ưu, ngày bón phân. Trả về JSON: {{"optimal_irrigation_time": "giờ", "fertilizer_day": "ngày", "reason": "lý do"}}
     """
-    response = model.generate_content(prompt)
-    return json.loads(response.text)  
+    try:
+        response = model.generate_content(prompt)
+        logger.debug(f"Gemini raw response: {response.text}")
 
+        # Clean up the response to extract only the JSON part
+        cleaned_text = response.text.strip()
+        if cleaned_text.startswith("```json"):
+            cleaned_text = cleaned_text[7:]
+        if cleaned_text.endswith("```"):
+            cleaned_text = cleaned_text[:-3]
+        
+        cleaned_text = cleaned_text.strip()
+
+        return json.loads(cleaned_text)
+    except json.JSONDecodeError as e:
+        logger.error(f"Lỗi khi phân tích JSON từ Gemini: {e}. Response: '{response.text}'")
+        # Return a default error structure if JSON parsing fails
+        return {
+            "optimal_irrigation_time": "Không xác định",
+            "fertilizer_day": "Không xác định",
+            "reason": f"Không thể phân tích phản hồi từ AI. Lỗi: {e}"
+        }
+    except Exception as e:
+        logger.error(f"Lỗi không xác định từ Gemini: {e}")  
+        return {
+            "optimal_irrigation_time": "Không xác định",
+            "fertilizer_day": "Không xác định",
+            "reason": f"Lỗi khi gọi API phân tích. Lỗi: {e}"
+        }
 
 def send_telegram_message(message):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
