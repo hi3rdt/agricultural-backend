@@ -1,6 +1,9 @@
 fastapi
-uvicorn
-paho-mqtt
 openpyxl
-google-generativeai
 requests
+uvicorn[standard]
+google-generativeai
+ultralytics
+opencv-python-headless
+httpx
+pydantic

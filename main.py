@@ -1,3 +1,4 @@
+import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 from datetime import datetime
@@ -8,6 +9,11 @@ from threading import Lock
 import requests
 import google.generativeai as genai
 import json
+import os
+import time
+from fastapi.staticfiles import StaticFiles
+from typing import List
+from ultralytics import YOLO
 
 #  logging 
 logging.basicConfig(
