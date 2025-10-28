@@ -45,7 +45,6 @@ DB_FILE = "data.db"
 UPLOAD_DIRECTORY = "uploaded_images" 
 YOLO_MODEL_PATH = "yolov12n.pt"
 
-app.mount("/images", StaticFiles(directory=UPLOAD_DIRECTORY), name="images")
 
 # Database SQLite
 DB_FILE = "data.db"
@@ -101,6 +100,8 @@ def init_storage():
 
 init_db()
 init_storage()
+
+app.mount("/images", StaticFiles(directory=UPLOAD_DIRECTORY), name="images")
 
 #  ESP32
 class SensorData(BaseModel):
