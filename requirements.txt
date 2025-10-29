@@ -1,9 +1,9 @@
 fastapi
-openpyxl
-requests
 uvicorn[standard]
 google-generativeai
 ultralytics
 opencv-python-headless
-httpx
+requests
+httpx 
 pydantic
+python-dotenv 
